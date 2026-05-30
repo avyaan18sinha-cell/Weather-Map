@@ -1,0 +1,385 @@
+from operator import index
+import os
+import datetime
+import requests
+
+import tkinter as tk
+from PIL import Image, ImageTk
+from tkinter import ttk, messagebox
+from tkinter import font
+from dotenv import load_dotenv
+#window
+
+load_dotenv()
+
+window = tk.Tk()
+window.geometry("900x720")
+window.title("\2601 Weather App")
+window.tk_setPalette(background="#4C86AA")
+window.resizable(False, False)
+
+#variables and tkinter variables
+API_KEY = os.getenv("OPEN_WEATHER_MAP")
+if not API_KEY:
+    raise RuntimeError("Set your OpenWeaterMap API key properly")
+BASE_URL = "http://api.openweathermap.org/data/2.5/"
+#for future use -> https://api.openweathermap.org/data/2.5/weather?q={city name}&appid={API key}
+UNITS = "imperial"
+TEMP_UNIT = "°F"
+WIND_UNIT = "mph"
+ICONS_DIR = "icons"
+
+#Function
+def fetch(endpoints:str, city:str)->dict:
+    try:
+        response = requests.get(f"{BASE_URL}{endpoints}", 
+                    params={"q": city, "appid": API_KEY, "units": UNITS}, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+    return {}
+
+def parse_datetime(timestamp, timezone_shift):
+    tz = datetime.timezone(datetime.timedelta(seconds=timezone_shift))
+    zone = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).astimezone(tz)
+
+    return zone.strftime("%A-%Y/%b/%d %I:%M:%S %p")
+
+
+
+def get_weather_info(endpoints):
+    try:
+        if endpoints =="weather":
+            city = entry.get().strip().lower()
+            data = fetch(endpoints, city)
+            temp_data = data["main"]
+            keys = ["temp", "temp_max", "temp_min", "feels_like",]
+            for widget in display_mid_frame.winfo_children():
+                widget.destroy()
+            for i in range(0,4):
+                text = temp_data[keys[i]]
+                label = tk.Label(master=display_mid_frame, text=f"{text}",font=("Arial",12),background="#000000", foreground="#F1EBEB", border=10)
+                label.grid(row=i, column=0,padx=5, pady=5, sticky="nsew")
+
+            weather_des = data["weather"][0]
+            icon = f"{weather_des['icon']}"
+            weather_des = f'{weather_des["description"]} - {weather_des["main"]}'
+
+            match icon:
+                case "01d":
+                    image ="clear_skyicon.png"
+                case "01n":
+                    image = "clear_skyicon.png"
+                case "02d":
+                    image = "few_clouds_day.png"
+                case "02n":
+                    image = "few_clouds_night.png"
+                case "03d":
+                    image = "scattered_clouds_dayicon.png"
+                case "04d":
+                    image = "scattered_clouds_dayicon.png"
+                case "03n":
+                    image = "scattered_clouds_nighticon.png"
+                case "04n":
+                    image = "scattered_clouds_night.png"
+                case "09d":
+                    image = "shower_rain_dayicon.png"
+                case "09n":
+                    image = "shower_rain_nighticon.png"
+                case "10d":
+                    image = "rain_dayicon.png"
+                case "10n":
+                    image = "rain_nighticon.png"
+                case "11d":
+                    image = "thunderstorm_dayicon.png"
+                case "11n":
+                    image = "thunderstorm_nighticon.png"
+                case "13d":
+                    image = "snow_dayicon.png"
+                case "13n":
+                    image = "snow_nighticon.png"
+                case "50d":
+                    image = "fog.png"
+                case "50n":
+                    image = "fog_night.png"
+                case _:
+                    image = "clear_skyicon.png"
+
+
+                
+
+            #Weather Description
+            weather_des_icon= Image.open(os.path.join("assets", image)).resize((30, 30))
+            weather_des_icon_tk = ImageTk.PhotoImage(weather_des_icon)
+
+            label = tk.Label(master=display_mid_frame, text=weather_des,image=weather_des_icon_tk,compound="right",wraplength=75,font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=10)
+            label.image = weather_des_icon_tk
+            label.grid(row=4, column=0, padx=5, pady=5, sticky="nsew")
+
+            #Left Frame
+            data_fields = [(city, "" ),
+                            (data["wind"]["speed"], "Km/hr"),
+                            (data["visibility"]//1000, "Km"),
+                            (data["main"]["humidity"], "%"),
+                            (data["main"]["sea_level"], "m"),
+                            (data["main"]["grnd_level"], "m"),]
+
+            for index, (field, unit) in enumerate(data_fields):
+                    label = tk.Label(master=display_left_frame, text=f"{field} {unit}", font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=10)
+                    label.grid(row=index, column=2, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+            #Right Frame
+            sun = data["sys"]
+            tz = data["timezone"]
+
+            sunrise = parse_datetime(sun["sunrise"], tz)
+            sunset = parse_datetime(sun["sunset"], tz)
+
+            for index, dates in enumerate([sunrise, sunset]):
+                label = tk.Label(master=display_rf, text=dates, font=("Arial", 12), background="#000000", foreground="#F1EBEB", wraplength=75, border=10)
+                label.grid(row=index, column=0,padx=5, pady=5, sticky="nsew")
+        elif endpoints == "forecast":
+                city = entry.get().strip().lower()
+                fetch_data = fetch(endpoints, city)
+                print(fetch_data)
+                data = fetch_data["list"][0]
+                #print(fetch_data)
+
+
+
+                temp_data = data["main"]
+                keys = ["temp", "temp_max", "temp_min", "feels_like",]
+                for widget in display_mid_frame.winfo_children():
+                    widget.destroy()
+                for i in range(0,4):
+                    text = temp_data[keys[i]]
+                    label = tk.Label(master=display_mid_frame, text=f"{text}",font=("Arial",12),background="#000000", foreground="#F1EBEB", border=10)
+                    label.grid(row=i, column=0,padx=5, pady=5, sticky="nsew")
+
+                weather_des = data["weather"][0]
+                icon = f"{weather_des['icon']}"
+                weather_des = f'{weather_des["description"]} - {weather_des["main"]}'
+
+                match icon:
+                    case "01d":
+                        image ="clear_skyicon.png"
+                    case "01n":
+                        image = "clear_skyicon.png"
+                    case "02d":
+                        image = "few_clouds_day.png"
+                    case "02n":
+                        image = "few_clouds_night.png"
+                    case "03d":
+                        image = "scattered_clouds_dayicon.png"
+                    case "04d":
+                        image = "scattered_clouds_dayicon.png"
+                    case "03n":
+                        image = "scattered_clouds_nighticon.png"
+                    case "04n":
+                        image = "scattered_clouds_night.png"
+                    case "09d":
+                        image = "shower_rain_dayicon.png"
+                    case "09n":
+                        image = "shower_rain_nighticon.png"
+                    case "10d":
+                        image = "rain_dayicon.png"
+                    case "10n":
+                        image = "rain_nighticon.png"
+                    case "11d":
+                        image = "thunderstorm_dayicon.png"
+                    case "11n":
+                        image = "thunderstorm_nighticon.png"
+                    case "13d":
+                        image = "snow_dayicon.png"
+                    case "13n":
+                        image = "snow_nighticon.png"
+                    case "50d":
+                        image = "fog.png"
+                    case "50n":
+                        image = "fog_night.png"
+                    case _:
+                        image = "clear_skyicon.png"
+
+
+                
+
+                #Weather Description
+                weather_des_icon= Image.open(os.path.join("assets", image)).resize((30, 30))
+                weather_des_icon_tk = ImageTk.PhotoImage(weather_des_icon)
+
+                label = tk.Label(master=display_mid_frame, text=weather_des,image=weather_des_icon_tk,compound="right",wraplength=75,font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=10)
+                label.image = weather_des_icon_tk
+                label.grid(row=4, column=0, padx=5, pady=5, sticky="nsew")
+
+                #Left Frame
+                data_fields = [(city, "" ),
+                                (data["wind"]["speed"], "Km/hr"),
+                                (data["visibility"]//1000, "Km"),
+                                (data["main"]["humidity"], "%"),
+                                (data["main"]["sea_level"], "m"),
+                                (data["main"]["grnd_level"], "m"),]
+
+                for index, (field, unit) in enumerate(data_fields):
+                        label = tk.Label(master=display_left_frame, text=f"{field} {unit}", font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=10)
+                        label.grid(row=index, column=2, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+                #Right Frame
+            
+                sunrise = fetch_data["city"]["sunrise"]
+                sunset = fetch_data["city"]["sunset"]
+                tz = fetch_data["city"]["timezone"]
+
+                sunrise_label["text"] = "Sunrise(Today)"
+                sunset_label["text"] = "Sunset(Today)"
+
+                sunrise = parse_datetime(sunrise, tz)
+                sunset = parse_datetime(sunset, tz)
+
+                for index, dates in enumerate([sunrise, sunset]):
+                    label = tk.Label(master=display_rf, text=dates, font=("Arial", 12), background="#000000", foreground="#F1EBEB", wraplength=75, border=10)
+                    label.grid(row=index, column=0,padx=5, pady=5, sticky="nsew")
+
+    
+    
+    except Exception as e:
+                print(e)
+                messagebox.showerror("Error", "Some Error occured! Try Again!")
+
+
+                #Widgets
+main_label = tk.Label(master=window, text="Weather App", font=("Arial", 24, "bold underline"), background="#87CEFA", foreground="#FFFFFF", border=10)
+main_label.place(relx=0.5, rely=0.10, anchor="center")
+
+
+entry = tk.Entry(master=window, font=("Arial", 18), background="#FFFFFF", foreground="#000000", border=5)
+
+entry.place(relx=0.25, rely=0.175, anchor="nw", relwidth=0.5, relheight=0.075)
+entry.focus()
+
+weather_btn = tk.Button(master=window, text="Get Weather", font=("Arial", 18), background="#1E90FF", foreground="#FFFFFF", activebackground="#1C86EE", activeforeground="#FFFFFF", border=5, command=lambda x="weather":get_weather_info(x))
+weather_btn.place(relx=0.35, rely=0.30, anchor="center",)
+forecast_btn = tk.Button(master=window, text="Get Forecast", font=("Arial", 18), background="#1E90FF", foreground="#FFFFFF", activebackground="#1C86EE", activeforeground="#FFFFFF", border=5, command=lambda x = "forecast":get_weather_info(x))
+forecast_btn.place(relx=0.65, rely=0.300, anchor="center")
+
+#First Frame (Mid Frame)
+mid_frame = tk.Frame(master=window, background="#ECECEC", border=5)
+mid_frame.place(relx=0.27, rely=0.35, relwidth=0.53, relheight=0.65)
+
+mid_frame.columnconfigure(index=(0, 1, 2, 3), weight=1, uniform="a")
+mid_frame.rowconfigure(index=(0, 1, 2, 3, 4), weight=1, uniform="a")
+
+
+temp_icon = Image.open(os.path.join("assets", "tempicon.png")).resize((25, 25))
+temp_icon_tk = ImageTk.PhotoImage(temp_icon)
+temp_label = tk.Label(master=mid_frame, text="Temperature", image=temp_icon_tk, compound="right", font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=18)
+temp_label.image = temp_icon_tk
+temp_label.place(relx=0.5, rely=0.10, anchor="center")
+temp_label.grid(row=0, column=0, columnspan=2, padx=1, pady=1, sticky="nsew")
+
+max_temp_icon = Image.open(os.path.join("assets", "max_tempicon.png")).resize((30, 30))
+max_temp_icon_tk = ImageTk.PhotoImage(max_temp_icon)
+max_tempicon = max_temp_icon_tk
+max_temp = tk.Label(master=mid_frame, text="Max Temp:°F", font=("Arial", 12), image=max_temp_icon_tk, compound="right", background="#000000", foreground="#F1EBEB", border=10)
+max_temp.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+min_temp_icon = Image.open(os.path.join("assets", "min_tempicon.png")).resize((30, 30))
+min_temp_icon_tk = ImageTk.PhotoImage(min_temp_icon)
+min_tempicon = min_temp_icon_tk
+min_temp = tk.Label(master=mid_frame, text="Min Temp:°F", font=("Arial", 12), image=min_temp_icon_tk, compound="right", background="#000000", foreground="#F1EBEB", border=10)
+min_temp.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+feels_like_icon = Image.open(os.path.join("assets", "feels_likeicon.png")).resize((30, 30))
+feels_like_icon_tk = ImageTk.PhotoImage(feels_like_icon)
+feels_like_icon = feels_like_icon_tk
+feels_like = tk.Label(master=mid_frame, text="Feels Like:°F", font=("Arial", 12), image=feels_like_icon_tk, compound="right", background="#000000", foreground="#F1EBEB", border=10)
+feels_like.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+#Weather Description
+description = tk.Label(master=mid_frame, text="Conditions", font=("Arial", 12), background="#000000", foreground="#F1EBEB", border=10)
+description.grid(row=4,column=0,columnspan=2, padx=5, pady=5, sticky="nsew")
+
+display_mid_frame = tk.Frame(master=mid_frame)
+display_mid_frame.grid(row=0, column=2, columnspan=2,rowspan=5,pady=1,padx=1,sticky="nsew")
+
+display_mid_frame.columnconfigure(index=(0,), weight=1, uniform="a")
+display_mid_frame.rowconfigure(index=(0, 1, 2, 3, 4), weight=1, uniform="a")
+
+#Left Frame
+left_frame = tk.Frame(master=window, background="#ECECEC", border=5)
+left_frame.place(relx=0.0, rely=0.35, relwidth=0.31, relheight=0.65)
+
+left_frame.columnconfigure(index=(0, 1, 2, 3), weight=1, uniform="a")
+left_frame.rowconfigure(index=(0, 1, 2, 3, 4, 5), weight=1, uniform="a")
+
+
+
+
+city_name = Image.open(os.path.join("assets", "city_name.png")).resize((30, 30))
+city_name_tk = ImageTk.PhotoImage(city_name)
+city_name = tk.Label(master=left_frame, text="City", font=("Arial", 12), background="#000000", image=city_name_tk, compound="left", foreground="#F1EBEB", border=10)
+city_name.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+city_name.image = city_name_tk
+
+wind_speed = Image.open(os.path.join("assets", "wind_speed.png")).resize((30, 30))
+wind_speed_tk = ImageTk.PhotoImage(wind_speed)
+wind_speed = tk.Label(master=left_frame, text="Wind Speed", font=("Arial", 12), background="#000000", image=wind_speed_tk, compound="left", foreground="#F1EBEB", border=10)
+wind_speed.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+
+visibility = Image.open(os.path.join("assets", "visibility.png")).resize((30, 30))
+visibility_tk = ImageTk.PhotoImage(visibility)
+visibility = tk.Label(master=left_frame, text="Visibility", font=("Arial", 12), background="#000000", image=visibility_tk, compound="left", foreground="#F1EBEB", border=10)
+visibility.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+
+humidity_level = Image.open(os.path.join("assets", "humidity_level.png")).resize((30, 30))
+humidity_level_tk = ImageTk.PhotoImage(humidity_level)
+humidity_level = tk.Label(master=left_frame, text="Humidity", font=("Arial", 12), background="#000000", image=humidity_level_tk, compound="left", foreground="#F1EBEB", border=10)
+humidity_level.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+sea_level = Image.open(os.path.join("assets", "sea_level.png")).resize((30, 30))
+sea_level_tk = ImageTk.PhotoImage(sea_level)
+sea_level = tk.Label(master=left_frame, text="Sea Level", font=("Arial", 12), background="#000000", image=sea_level_tk, compound="left", foreground="#F1EBEB", border=10)
+sea_level.grid(row=4, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+
+ground_level = Image.open(os.path.join("assets", "ground_level.png")).resize((30, 30))
+ground_level_tk = ImageTk.PhotoImage(ground_level)
+ground_level = tk.Label(master=left_frame, text="Ground Level", font=("Arial", 12), background="#000000", image=ground_level_tk, compound="left", foreground="#F1EBEB", border=10)
+ground_level.grid(row=5, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+display_left_frame = tk.Frame(master=left_frame)
+display_left_frame.grid(row=0, column=2, columnspan=2,rowspan=6,pady=1,padx=1,sticky="nsew")
+display_left_frame.columnconfigure(index=(0,), weight=1, uniform="a")
+display_left_frame.rowconfigure(index=(0, 1, 2, 3, 4, 5), weight=1, uniform="a")
+
+
+right_frame = tk.Frame(master=window, background="#ECECEC", border=5)
+right_frame.place(relx=0.775, rely=0.35, relwidth=0.225, relheight=0.65)
+right_frame.columnconfigure(index=(0, 1, 2, 3), weight=1, uniform="a")
+right_frame.rowconfigure(index=(0, 1), weight=1, uniform="a")
+
+
+sunrise_icon = Image.open(os.path.join("assets", "sunrise.png")).resize((32, 32))
+sunrise_icon_tk = ImageTk.PhotoImage(sunrise_icon)
+sunrise_label = tk.Label(master=right_frame, compound="top", wraplength=60, text="Sunrise", font=("Arial", 12), image=sunrise_icon_tk, background="#000000", foreground="#F1EBEB", border=10)
+sunrise_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5,  sticky="nsew")
+sunrise_label.image = sunrise_icon_tk
+
+sunset_icon = Image.open(os.path.join("assets", "sunset.png")).resize((32, 32))
+sunset_icon_tk = ImageTk.PhotoImage(sunset_icon)
+sunset_label = tk.Label(master=right_frame, compound="top", wraplength=60, text="Sunset", font=("Arial", 12), image=sunset_icon_tk, background="#000000", foreground="#F1EBEB", border=10)
+sunset_label.image = sunset_icon_tk
+sunset_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+
+display_rf = tk.Frame(master=right_frame, background="white")
+display_rf.grid(row=0, column=2, columnspan=2,rowspan=2,pady=1, padx=1,sticky="nsew")
+display_rf.columnconfigure(index=(0,), weight=1, uniform="a")
+display_rf.rowconfigure(index=(0, 1), weight=1, uniform="a")
+
+
+
+#Running the mainloop
+window.mainloop()
